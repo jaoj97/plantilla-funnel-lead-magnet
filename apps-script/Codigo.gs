@@ -8,6 +8,7 @@
  *     Lead por la API de conversiones (el mismo ID que usa el pixel, así no se duplica).
  *  3. Te da un menú «Funnel» en la hoja para avisarle a Meta cuando alguien agenda o compra.
  *  4. Todos los días a las 9 am revisa que sigan entrando registros y te escribe si algo falla.
+ *  5. Si lo activas en la pestaña «Correo de entrega», envía el regalo por correo como respaldo de WhatsApp.
  *
  * Dónde van tus datos privados (NUNCA en este código):
  *   Configuración del proyecto (engrane) > Propiedades del script:
@@ -23,12 +24,13 @@
 const VERSION_GRAPH = 'v25.0';
 const HOJA = 'Registros';
 const HOJA_TABLERO = 'Tablero';
+const HOJA_CORREO = 'Correo de entrega';
 const ESTADOS = ['Nuevo', 'Escribió', 'Propuesta enviada', 'Agendó', 'Asistió', 'Compró', 'No avanzó'];
 const COLUMNAS = [
   'creado', 'nombre', 'whatsapp', 'correo', 'califica', 'respuestas', 'estado', 'notas', 'monto_venta',
   'registro', 'paso', 'clic_whatsapp', 'lead_magnet',
   'utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'fbclid',
-  'meta_lead', 'meta_agendo', 'meta_compra',
+  'meta_lead', 'meta_agendo', 'meta_compra', 'correo_entrega',
   'fbp', 'fbc', 'dispositivo', 'url', 'actualizado', 'sesion'
 ];
 const FORMATO_FECHA = 'd/m/yyyy h:mm am/pm';
@@ -51,6 +53,7 @@ function instalar() {
   });
 
   crearTablero(libro);
+  crearHojaCorreo(libro);
 
   ScriptApp.getProjectTriggers().forEach(function (t) {
     if (t.getHandlerFunction() === 'revisarSalud') ScriptApp.deleteTrigger(t);
@@ -87,6 +90,7 @@ function doPost(e) {
   try {
     hoja = prepararHoja();
     fila = guardarFila(hoja, datos.sesion, aplanar(datos), datos.tipo === 'clic_whatsapp');
+    if (fila && datos.tipo === 'registro') enviarCorreoEntregaSiFalta(hoja, fila);
   } finally {
     candado.releaseLock();
   }
@@ -257,6 +261,51 @@ function enviarEvento(nombre, f, idEvento, datosExtra, fuente) {
 function cifrar(texto) {
   const bytes = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, String(texto), Utilities.Charset.UTF_8);
   return bytes.map(function (b) { return ('0' + (b & 0xff).toString(16)).slice(-2); }).join('');
+}
+
+/* ============ Correo de entrega (respaldo de WhatsApp) ============ */
+
+function crearHojaCorreo(libro) {
+  if (libro.getSheetByName(HOJA_CORREO)) return;
+  const h = libro.insertSheet(HOJA_CORREO, 2);
+  h.getRange(1, 1, 6, 2).setValues([
+    ['Campo', 'Valor'],
+    ['Enviar correo de entrega (sí / no)', 'no'],
+    ['Nombre del remitente', 'Tu nombre'],
+    ['Asunto', 'Aquí está lo que pediste'],
+    ['Enlace del regalo', 'https://'],
+    ['Texto del correo (usa {nombre} y {enlace})', 'Hola {nombre},\n\nAquí tienes el enlace:\n{enlace}\n\nSi te surge una duda mientras lo ves, respóndeme este correo o escríbeme por WhatsApp.\n\nUn saludo']
+  ]);
+  h.getRange(1, 1, 1, 2).setFontWeight('bold');
+  h.getRange(2, 2).setDataValidation(SpreadsheetApp.newDataValidation().requireValueInList(['sí', 'no'], true).build());
+  h.setColumnWidth(1, 300);
+  h.setColumnWidth(2, 520);
+  h.getRange(2, 2, 5, 1).setWrap(true).setVerticalAlignment('top');
+  h.getRange(8, 1).setValue('Se envía desde tu cuenta de Google, en texto plano, a quien completa el registro. Gmail gratuito permite unos 100 correos al día.');
+}
+
+function enviarCorreoEntregaSiFalta(hoja, fila) {
+  const conf = hoja.getParent().getSheetByName(HOJA_CORREO);
+  if (!conf) return;
+  const v = conf.getRange(2, 2, 5, 1).getValues().map(function (r) { return String(r[0]); });
+  if (['sí', 'si'].indexOf(v[0].trim().toLowerCase()) < 0) return;
+  let cab = encabezados(hoja);
+  if (cab.indexOf('correo_entrega') < 0) {
+    hoja.getRange(1, cab.length + 1).setValue('correo_entrega').setFontWeight('bold');
+    cab = encabezados(hoja);
+  }
+  const f = leerFila(hoja, fila);
+  if (!f.correo || String(f.correo_entrega) !== '') return;
+  const nombre = String(f.nombre || '').trim().split(/\s+/)[0];
+  const cuerpo = v[4].replace(/\{nombre\}/g, nombre).replace(/\{enlace\}/g, v[3]);
+  let resultado;
+  try {
+    MailApp.sendEmail({ to: String(f.correo), subject: v[2], body: cuerpo, name: v[1] });
+    resultado = 'enviado ' + fechaCorta();
+  } catch (err) {
+    resultado = 'error: ' + String(err).slice(0, 150);
+  }
+  hoja.getRange(fila, cab.indexOf('correo_entrega') + 1).setValue(resultado);
 }
 
 /* ============ Menú de la hoja ============ */

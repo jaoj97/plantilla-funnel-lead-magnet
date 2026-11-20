@@ -226,8 +226,13 @@
     var idEvento = "lead-" + estado.sesion;
     var datos = paquete("registro", { califica: esCalificado, event_id: idEvento });
 
-    F.enviar(datos).then(function (ok) {
-      if (!ok) F.enviar(datos, true); // segundo intento como baliza; el parcial ya quedó guardado
+    // El registro sale como baliza: el navegador lo entrega aunque la página cambie,
+    // así la persona no espera a que la hoja termine de avisar a Meta y enviar el correo.
+    var salida = F.enviar(datos, true).then(function (enCola) {
+      if (enCola) return new Promise(function (r) { setTimeout(function () { r(true); }, 500); });
+      return F.enviar(datos); // sin baliza: envío normal (el parcial ya quedó guardado)
+    });
+    salida.then(function () {
       F.almacen.guardar("funnel_ctx", {
         sesion: estado.sesion,
         nombre: estado.contacto.nombre,
