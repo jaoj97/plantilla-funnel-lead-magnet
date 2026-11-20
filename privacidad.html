@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Aviso de privacidad</title>
+  <meta name="robots" content="noindex">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Familjen+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="estilos.css">
+  <script src="config.js"></script>
+</head>
+<body>
+  <!--
+    Plantilla básica de aviso de privacidad simplificado. Los datos salen de config.js (sección privacidad).
+    Revísala con tu abogado o contador: cada país tiene reglas propias.
+  -->
+  <main class="legal">
+    <h1>Aviso de privacidad</h1>
+    <p><strong data-campo="responsable"></strong> es responsable del uso y protección de los datos personales que nos compartes en este sitio.</p>
+
+    <h2>Qué datos recabamos</h2>
+    <p>Tu nombre, número de WhatsApp, correo electrónico y las respuestas que das en el cuestionario. También datos técnicos de tu visita (tipo de dispositivo, página de origen y parámetros del anuncio por el que llegaste).</p>
+
+    <h2>Para qué los usamos</h2>
+    <p>Para <span data-campo="finalidad"></span>. Compartimos datos cifrados con Meta (Facebook e Instagram) para medir qué anuncios funcionan; Meta no recibe tus datos en texto legible.</p>
+
+    <h2>Datos que se guardan aunque no termines</h2>
+    <p>Lo que escribes en el formulario se guarda mientras lo llenas, aunque no lo envíes, para poder ayudarte si se corta la conexión.</p>
+
+    <h2>Tus derechos</h2>
+    <p>Puedes pedir acceso, corrección, cancelación u oposición al uso de tus datos, o retirar tu consentimiento, escribiendo a <a data-campo="correo_contacto"></a>.</p>
+  </main>
+  <script>
+    (function () {
+      var p = (window.FUNNEL && window.FUNNEL.privacidad) || {};
+      document.querySelectorAll("[data-campo]").forEach(function (el) {
+        var v = p[el.getAttribute("data-campo")] || "";
+        el.textContent = v;
+        if (el.tagName === "A") el.href = "mailto:" + v;
+      });
+    })();
+  </script>
+</body>
+</html>
