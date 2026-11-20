@@ -221,6 +221,7 @@
     boton.querySelector(".boton-texto").textContent = "Enviando…";
     aviso.hidden = true;
     clearTimeout(pendiente);
+    sucio = false; // el registro ya lleva todo; no hace falta otro guardado parcial al salir
 
     var esCalificado = califica();
     var idEvento = "lead-" + estado.sesion;

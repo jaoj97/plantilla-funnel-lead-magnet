@@ -185,6 +185,8 @@ function guardarFila(hoja, sesion, valores, soloSiExiste) {
   }
   const rango = hoja.getRange(fila, 1, 1, cab.length);
   const actual = nueva ? cab.map(function () { return ''; }) : rango.getValues()[0];
+  // Solo se escriben las celdas que cambian: así nunca se pisa lo que otra petición
+  // (o una persona en la hoja) escribió en las demás columnas de esta fila.
   const protegidas = ['creado', 'estado', 'clic_whatsapp'];
   const salida = cab.map(function (k, i) {
     if (!(k in valores)) return actual[i];
@@ -194,7 +196,15 @@ function guardarFila(hoja, sesion, valores, soloSiExiste) {
     if (protegidas.indexOf(k) >= 0 && actual[i] !== '') return actual[i];
     return nuevo;
   });
-  rango.setValues([salida]);
+  if (nueva) {
+    rango.setValues([salida]);
+  } else {
+    salida.forEach(function (v, i) {
+      if (v !== actual[i] && !(v instanceof Date && actual[i] instanceof Date && v.getTime() === actual[i].getTime())) {
+        hoja.getRange(fila, i + 1).setValue(v);
+      }
+    });
+  }
   return fila;
 }
 
