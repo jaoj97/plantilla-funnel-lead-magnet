@@ -33,6 +33,34 @@ const COLUMNAS = [
 ];
 const FORMATO_FECHA = 'd/m/yyyy h:mm am/pm';
 
+/* ============ Primera vez: ejecuta esta función ============ */
+
+function instalar() {
+  const libro = SpreadsheetApp.getActiveSpreadsheet();
+  const hoja = prepararHoja();
+  const cab = encabezados(hoja);
+  const filas = Math.max(hoja.getMaxRows() - 1, 1);
+
+  hoja.setFrozenRows(1);
+  hoja.setFrozenColumns(2);
+  hoja.getRange(1, 1, 1, cab.length).setFontWeight('bold');
+  const reglaEstado = SpreadsheetApp.newDataValidation().requireValueInList(ESTADOS, true).setAllowInvalid(false).build();
+  hoja.getRange(2, cab.indexOf('estado') + 1, filas, 1).setDataValidation(reglaEstado);
+  ['creado', 'actualizado', 'clic_whatsapp'].forEach(function (k) {
+    hoja.getRange(2, cab.indexOf(k) + 1, filas, 1).setNumberFormat(FORMATO_FECHA);
+  });
+
+  crearTablero(libro);
+
+  ScriptApp.getProjectTriggers().forEach(function (t) {
+    if (t.getHandlerFunction() === 'revisarSalud') ScriptApp.deleteTrigger(t);
+  });
+  ScriptApp.newTrigger('revisarSalud').timeBased().everyDays(1).atHour(9).create();
+
+  libro.toast('La hoja está preparada y la revisión diaria quedó programada a las 9 am.', 'Funnel instalado', 10);
+  Logger.log('Listo: hoja preparada y revisión diaria programada a las 9 am.');
+}
+
 /* ============ Recepción de datos desde la landing ============ */
 
 function doGet() {
@@ -291,33 +319,6 @@ function probarMeta() {
 }
 
 /* ============ Instalación, tablero y alertas ============ */
-
-function instalar() {
-  const libro = SpreadsheetApp.getActiveSpreadsheet();
-  const hoja = prepararHoja();
-  const cab = encabezados(hoja);
-  const filas = Math.max(hoja.getMaxRows() - 1, 1);
-
-  hoja.setFrozenRows(1);
-  hoja.setFrozenColumns(2);
-  hoja.getRange(1, 1, 1, cab.length).setFontWeight('bold');
-  const reglaEstado = SpreadsheetApp.newDataValidation().requireValueInList(ESTADOS, true).setAllowInvalid(false).build();
-  hoja.getRange(2, cab.indexOf('estado') + 1, filas, 1).setDataValidation(reglaEstado);
-  ['creado', 'actualizado', 'clic_whatsapp'].forEach(function (k) {
-    hoja.getRange(2, cab.indexOf(k) + 1, filas, 1).setNumberFormat(FORMATO_FECHA);
-  });
-
-  crearTablero(libro);
-
-  ScriptApp.getProjectTriggers().forEach(function (t) {
-    if (t.getHandlerFunction() === 'revisarSalud') ScriptApp.deleteTrigger(t);
-  });
-  ScriptApp.newTrigger('revisarSalud').timeBased().everyDays(1).atHour(9).create();
-
-  try {
-    SpreadsheetApp.getUi().alert('Listo. La hoja está preparada y la revisión diaria quedó programada a las 9 am.');
-  } catch (e) { /* se ejecutó desde el editor */ }
-}
 
 function prepararHoja() {
   const libro = SpreadsheetApp.getActiveSpreadsheet();
